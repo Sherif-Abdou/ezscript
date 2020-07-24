@@ -2,7 +2,6 @@ from src import Lexer, Token
 from collections import deque
 
 from src.ast import *
-from src.ast.function_call import FunctionCall
 
 PRECEDENCE = {
     "+": 1,
@@ -59,7 +58,10 @@ class Parser:
                 self.__parse_function()
                 self.__next()
             elif self.__last_token == Token.IDENTIFIER and self.__funInScope(self.__last_identifier()):
-                self.__parse_function_call(self.__last_identifier())
+                func = self.__parse_function_call(self.__last_identifier())
+                self.__scope_stack.top.commands.append(func)
+            elif self.__last_token == Token.RETURN:
+                self.__parse_return()
             elif self.__last_token == Token.EXTERN:
                 self.__parse_extern()
             elif self.__last_token == Token.END:
@@ -79,6 +81,14 @@ class Parser:
         func = Function(name)
         self.__scope_stack.push(func)
 
+    def __parse_return(self):
+        self.__next()
+        if self.__last_token != Token.IDENTIFIER:
+            raise Exception()
+        va = self.parse_value()
+        self.__scope_stack.top.commands.append(Return(va))
+
+
     def __parse_end(self):
         full_scope = self.__scope_stack.pop()
         if type(full_scope) == Function:
@@ -96,7 +106,7 @@ class Parser:
             args.append(value)
             if self.__last_token == Token.COMMA:
                 self.__next()
-        self.__scope_stack.top.commands.append(FunctionCall(identifier, args))
+        return FunctionCall(identifier, args)
 
     def __parse_extern(self):
         self.__next()
@@ -119,14 +129,23 @@ class Parser:
 
     def parse_value(self):
         tree = Value(None, ExpressionType.PLACEHOLDER)
+        negate = False
         op_stack = PeakStack([tree])
-        while self.__last_token != Token.CLOSE_PARENTH and self.__last_token != Token.COMMA:
+        while self.__last_token != Token.CLOSE_PARENTH and self.__last_token != Token.COMMA and self.__last_token != Token.EOL:
             if self.__last_token == Token.NUMBER:
-                val = Value(float(self.__last_identifier()), ExpressionType.VALUE)
+                integer = int(self.__last_identifier())
+                if negate:
+                    integer *= -1
+                    negate = False
+                val = Value(integer, ExpressionType.VALUE)
                 self.__add_value(op_stack, val)
             elif self.__last_token == Token.OPEN_PARENTH:
                 self.__next()
                 val = self.parse_value()
+                self.__add_value(op_stack, val)
+            elif self.__last_token == Token.IDENTIFIER and self.__funInScope(iden := self.__last_identifier()):
+                value = self.__parse_function_call(iden)
+                val = Value(value, ExpressionType.VALUE)
                 self.__add_value(op_stack, val)
             elif self.OPERATOR_EXPS[self.__last_token] in self.OPERATORS:
                 operator = self.OPERATOR_EXPS[self.__last_token]
@@ -135,14 +154,17 @@ class Parser:
                     op_stack.pop()
                     op_stack.push(Value(self.OPERATOR_STRS[self.__last_token], operator))
                     op_stack.top.left = temp
+                elif op_stack.top.type == ExpressionType.PLACEHOLDER and operator == ExpressionType.MINUS:
+                    negate = True
                 elif self.OPERATORS[op_stack.top.type] <= self.OPERATORS[operator]:
                     temp = op_stack.pop()
                     temp2 = op_stack.top
                     op_stack.push(Value(self.OPERATOR_STRS[self.__last_token], operator))
-                    if temp2.left is temp:
-                        temp2.left = op_stack.top
-                    elif temp2.right is temp:
-                        temp2.right = op_stack.top
+                    if temp2 is not None:
+                        if temp2.left is temp:
+                            temp2.left = op_stack.top
+                        elif temp2.right is temp:
+                            temp2.right = op_stack.top
                     op_stack.top.left = temp
                     op_stack.push(temp)
                 elif self.OPERATORS[op_stack.top.type] > self.OPERATORS[operator]:

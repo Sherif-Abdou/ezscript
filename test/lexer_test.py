@@ -37,7 +37,7 @@ class MyTestCase(unittest.TestCase):
         parser = Parser(lexer)
         parser.parse()
         functions = parser.getTree().functions[1].commands[0].args
-        print(functions)
+        # print(functions)
 
 
 if __name__ == '__main__':

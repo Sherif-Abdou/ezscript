@@ -16,3 +16,4 @@ class Token(Enum):
     MULTIPLY = -12
     DIVIDE = -13
     END = -14
+    RETURN = -15

@@ -49,6 +49,8 @@ class Lexer:
             return Token.EXTERN
         elif identifier == "end":
             return Token.END
+        elif identifier == "return":
+            return Token.RETURN
         elif identifier.isnumeric():
             return Token.NUMBER
         else:
