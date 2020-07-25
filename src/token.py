@@ -17,3 +17,5 @@ class Token(Enum):
     DIVIDE = -13
     END = -14
     RETURN = -15
+    EQUALS = -16
+    COLON = -17

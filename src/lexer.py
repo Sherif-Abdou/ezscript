@@ -9,7 +9,8 @@ class Lexer:
         self.__que = deque(text)
         self.__identifier = ""
         self.__special_chars = {"(": Token.OPEN_PARENTH, ")": Token.CLOSE_PARENTH, ",": Token.COMMA,
-                                "+": Token.ADD, "-": Token.SUBTRACT, "*": Token.MULTIPLY, "/": Token.DIVIDE}
+                                "+": Token.ADD, "-": Token.SUBTRACT, "*": Token.MULTIPLY, "/": Token.DIVIDE,
+                                "=": Token.EQUALS, ":": Token.COLON}
 
     def lastIdentifier(self):
         return self.__identifier

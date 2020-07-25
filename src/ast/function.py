@@ -6,5 +6,7 @@ class Function(Scope):
         super().__init__()
         if args is None:
             args = []
+        else:
+            self.variables += args
         self.name = name
         self.args = args

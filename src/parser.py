@@ -22,7 +22,7 @@ class PeakStack:
 
     def pop(self):
         value = self.que.pop()
-        self.top = self.que[len(self.que) - 1] if len(self.que)-1 >= 0 else None
+        self.top = self.que[len(self.que) - 1] if len(self.que) - 1 >= 0 else None
         return value
 
     def __iter__(self):
@@ -60,6 +60,8 @@ class Parser:
             elif self.__last_token == Token.IDENTIFIER and self.__funInScope(self.__last_identifier()):
                 func = self.__parse_function_call(self.__last_identifier())
                 self.__scope_stack.top.commands.append(func)
+            elif self.__last_token == Token.IDENTIFIER and not self.__funInScope(name := self.__last_identifier()):
+                self.__parse_assignment(name)
             elif self.__last_token == Token.RETURN:
                 self.__parse_return()
             elif self.__last_token == Token.EXTERN:
@@ -70,15 +72,39 @@ class Parser:
             else:
                 self.__next()
 
+    def __parse_type_set(self):
+        args = []
+        self.__next()
+        while self.__last_token != Token.CLOSE_PARENTH:
+            if len(args) > 0 and self.__last_token != Token.COMMA:
+                raise Exception()
+            elif len(args) > 0:
+                self.__next()
+            if self.__last_token != Token.IDENTIFIER:
+                raise Exception()
+            iden = self.__last_identifier()
+            self.__next()
+            if self.__last_token != Token.COLON:
+                raise Exception()
+            self.__next()
+            if self.__last_token != Token.IDENTIFIER:
+                raise Exception()
+            ty = Types.from_identifier(self.__last_identifier())
+            args.append(Variable(iden, ty))
+            self.__next()
+
+        return args
+
     def __parse_function(self):
         self.__next()
         if self.__last_token != Token.IDENTIFIER:
             raise Exception()
         name = self.__last_identifier()
         self.__next()
-        if self.__last_token != Token.EOL:
+        if self.__last_token != Token.OPEN_PARENTH:
             raise Exception()
-        func = Function(name)
+        args = self.__parse_type_set()
+        func = Function(name, args)
         self.__scope_stack.push(func)
 
     def __parse_return(self):
@@ -87,7 +113,6 @@ class Parser:
             raise Exception()
         va = self.parse_value()
         self.__scope_stack.top.commands.append(Return(va))
-
 
     def __parse_end(self):
         full_scope = self.__scope_stack.pop()
@@ -120,12 +145,30 @@ class Parser:
         self.__root.commands.append(extern)
         self.__root.functions.append(Function(identifier))
 
-    def __parse_assignment(self, name):
+    def __parse_assignment(self, identifier):
         self.__next()
         if self.__last_identifier() != "=":
             raise Exception()
         self.__next()
         value = self.parse_value()
+        if not self.__varInScope(identifier):
+            variable = Variable(identifier, self.__typeOf(value))
+            self.__scope_stack.top.variables.append(variable)
+        set_var = SetVariable(identifier, value)
+        self.__scope_stack.top.commands.append(set_var)
+
+    def __typeOf(self, v):
+        if v.type == ExpressionType.VALUE:
+            if isinstance(v.value, int):
+                return Types.INT
+            elif isinstance(v.value, float):
+                return Types.FLOAT
+        else:
+            if ty := self.__typeOf(v.left) is not None:
+                return ty
+            if ty := self.__typeOf(v.right) is not None:
+                return ty
+        return None
 
     def parse_value(self):
         tree = Value(None, ExpressionType.PLACEHOLDER)
@@ -146,6 +189,10 @@ class Parser:
             elif self.__last_token == Token.IDENTIFIER and self.__funInScope(iden := self.__last_identifier()):
                 value = self.__parse_function_call(iden)
                 val = Value(value, ExpressionType.VALUE)
+                self.__add_value(op_stack, val)
+            elif self.__last_token == Token.IDENTIFIER and self.__varInScope(iden := self.__last_identifier()):
+                variable = self.__getVar(iden)
+                val = Value(variable, ExpressionType.VALUE)
                 self.__add_value(op_stack, val)
             elif self.OPERATOR_EXPS[self.__last_token] in self.OPERATORS:
                 operator = self.OPERATOR_EXPS[self.__last_token]
@@ -199,3 +246,17 @@ class Parser:
                 if fun.name == identifier:
                     return True
         return False
+
+    def __varInScope(self, identifier):
+        for s in self.__scope_stack:
+            for var in s.variables:
+                if var.name == identifier:
+                    return True
+        return False
+
+    def __getVar(self, identifier):
+        for s in self.__scope_stack:
+            for var in s.variables:
+                if var.name == identifier:
+                    return var
+        return None
