@@ -5,9 +5,19 @@ class Types(Enum):
     INT = -1
     FLOAT = -2
     BOOL = -3
+    POINTER = -4
+
+    __counter = 1
+    custom_types = {}
 
     @staticmethod
-    def from_identifier(identifier):
+    def nextTypeNumber():
+        c = Types.__counter
+        Types.__counter += 1
+        return c
+
+    @staticmethod
+    def from_identifier(identifier: str):
         if identifier == "int":
             return Types.INT
         elif identifier == "double":

@@ -12,7 +12,6 @@ class CompileCases(unittest.TestCase):
             raw_str = f.read()
         parser = Parser(Lexer(raw_str))
         compiler = Compiler("test_file", parser)
-        compiler.compile()
         run(compiler)
 
 

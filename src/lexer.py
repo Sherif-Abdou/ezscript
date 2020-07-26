@@ -10,7 +10,7 @@ class Lexer:
         self.__identifier = ""
         self.__special_chars = {"(": Token.OPEN_PARENTH, ")": Token.CLOSE_PARENTH, ",": Token.COMMA,
                                 "+": Token.ADD, "-": Token.SUBTRACT, "*": Token.MULTIPLY, "/": Token.DIVIDE,
-                                "=": Token.EQUALS, ":": Token.COLON}
+                                "=": Token.EQUALS, ":": Token.COLON, "&": Token.REF}
 
     def lastIdentifier(self):
         return self.__identifier

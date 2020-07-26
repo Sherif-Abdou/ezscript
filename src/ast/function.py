@@ -2,7 +2,7 @@ from .scope import Scope
 
 
 class Function(Scope):
-    def __init__(self, name, args=None):
+    def __init__(self, name, args=None, ret=None):
         super().__init__()
         if args is None:
             args = []
@@ -10,3 +10,4 @@ class Function(Scope):
             self.variables += args
         self.name = name
         self.args = args
+        self.ret = ret

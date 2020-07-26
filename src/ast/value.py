@@ -7,7 +7,9 @@ class ExpressionType(Enum):
     MULTIPLY = -3
     DIVIDE = -4
     VALUE = -5
-    PLACEHOLDER = -6
+    REFERENCE = -6
+    DEREFERENCE = -7
+    PLACEHOLDER = -8
 
 
 class Value:

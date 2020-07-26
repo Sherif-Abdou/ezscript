@@ -1,9 +1,13 @@
-extern abs
-fun absolute(x: int)
+extern abs(a: int): int
+
+fun absolute(x: int): int
     return abs(2*x)
 end
 
-fun main()
-    a = 5
+fun main(): int
+    a = 2
+    b = 3
+    c = &b
+    d = &a
     return absolute(a)
 end

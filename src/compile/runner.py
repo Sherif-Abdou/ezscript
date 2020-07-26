@@ -11,8 +11,6 @@ def run(compiler: Compiler):
     # llvm.load_library_permanently("/usr/lib/libc.dylib")
     # llvm.add_symbol("abs", llvm.address_of_symbol("abs"))
 
-    llvm_ir = str(compiler.module)
-
     def create_execution_engine():
         """
         Create an ExecutionEngine suitable for JIT code generation on
@@ -25,7 +23,8 @@ def run(compiler: Compiler):
         # And an execution engine with an empty backing module
         backing_mod = llvm.parse_assembly("")
         engine = llvm.create_mcjit_compiler(backing_mod, target_machine)
-        return engine
+        compiler.compile(target_machine.target_data)
+        return engine, str(compiler.module)
 
     def compile_ir(engine, llvm_ir):
         """
@@ -41,7 +40,7 @@ def run(compiler: Compiler):
         engine.run_static_constructors()
         return mod
 
-    engine = create_execution_engine()
+    engine, llvm_ir = create_execution_engine()
     mod = compile_ir(engine, llvm_ir)
 
     # Look up the function pointer (a Python int)

@@ -1,8 +1,11 @@
-from typing import Union
+from typing import Union, Dict
+
+from llvmlite.binding import TargetData
 
 from src.ast import Extern, Function, FunctionCall, Value, ExpressionType, Return, Types, SetVariable, Variable
 from src.parser import Parser
-from llvmlite import ir
+from llvmlite import ir, binding
+
 
 double = ir.DoubleType()
 floating = ir.FloatType()
@@ -19,12 +22,14 @@ class Compiler:
         self.__parser = parser
         self.__parser.parse()
         self.__root = self.__parser.getTree()
+        self.__target_data = None
         self.__externals = set()
         self.__functions = {}
         self.__variables = None
         self.module: ir.Module = None
 
-    def compile(self):
+    def compile(self, target_data: TargetData):
+        self.__target_data = target_data
         self.module = ir.Module(name=self.__file_name)
         for command in self.__root.commands:
             if type(command) is Extern:
@@ -33,17 +38,19 @@ class Compiler:
         for func in self.__root.functions:
             self.__compile_function(func)
 
+    def compile_args(self, args):
+        arr = []
+        for v in args:
+            arr.append(self.__toType(v.type))
+        return arr
+
     def __compile_function(self, func: Function):
-        def compile_args(args):
-            arr = []
-            for v in args:
-                arr.append(self.__toType(v.type))
-            return arr
 
         if func.name in self.__externals:
             return
         self.__variables = {}
-        func_type = ir.FunctionType(integer, compile_args(func.args))
+        ret = integer if func.ret is None else self.__toType(func.ret)
+        func_type = ir.FunctionType(ret, self.compile_args(func.args))
         ir_func = ir.Function(self.module, func_type, func.name)
         self.__functions[func.name] = ir_func
         func_block = ir_func.append_basic_block(name="entry")
@@ -73,6 +80,12 @@ class Compiler:
                 return self.__compile_function_call(builder, v)
             elif isinstance(v := value.value, Variable):
                 return self.__compile_variable(builder, v)
+        elif value.type == ExpressionType.REFERENCE and isinstance(value.value, Variable):
+            variable = self.__variables[value.value.name]
+            return variable
+        elif value.type == ExpressionType.DEREFERENCE and isinstance(value.value, Variable):
+            variable = self.__compile_variable(builder, value.value)
+            return builder.load(variable)
         left = self.__compile_value(builder, value.left)
         right = self.__compile_value(builder, value.right)
         if value.type == ExpressionType.ADD:
@@ -104,8 +117,10 @@ class Compiler:
             value = self.__compile_value(builder, c.value)
             if c.name not in self.__variables:
                 self.__variables[c.name] = builder.alloca(value.type)
-            builder.store(value, self.__variables[c.name])
-            self.__variables[c.name] = builder.load(self.__variables[c.name])
+            align = value.type.get_abi_alignment(self.__target_data)
+            # print(f"Alignment: {align}")
+            ptr = self.__variables[c.name] if not c.deref else builder.load(self.__variables[c.name])
+            builder.store(value, ptr)
         elif isinstance(c, Variable):
             p = self.__variables[c.name]
             value = builder.load(p) if p.type.is_pointer else p
@@ -113,7 +128,8 @@ class Compiler:
 
     def __compile_extern(self, extern: Extern):
         if extern.identifier == "abs":
-            func_type = ir.FunctionType(integer, (integer,))
+            ret = integer if extern.function.ret is None else self.__toType(extern.function.ret)
+            func_type = ir.FunctionType(ret, self.compile_args(extern.function.args))
             func = ir.Function(self.module, func_type, name="abs")
             self.__functions["abs"] = func
             self.__externals.add("abs")

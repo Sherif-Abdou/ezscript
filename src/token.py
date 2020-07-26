@@ -19,3 +19,4 @@ class Token(Enum):
     RETURN = -15
     EQUALS = -16
     COLON = -17
+    REF = -18
